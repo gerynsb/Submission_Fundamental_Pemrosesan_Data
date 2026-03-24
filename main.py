@@ -1,35 +1,37 @@
-from utils.extract import extract_data
-from utils.transform import transform_data
-from utils.load import load_to_csv, load_to_mysql, load_to_gsheets
+import logging
+from utils.extract import jalankan_ekstraksi
+from utils.transform import bersihkan_data
+from utils.load import simpan_ke_csv, simpan_ke_mysql, simpan_ke_gsheets
 
-def main():
-    print("Mulai proses Ekstraksi...")
-    # Batasi page kecil dulu saat testing lokal, ganti ke 50 saat submission final
-    raw_data = extract_data(total_pages=50) 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Kredensial Pribadi Anda
+DB_URI = "mysql+pymysql://root:dean@localhost:3306/dicoding_etl"
+SPREADSHEET_ID = "1cBs2aDrhI5N5iuzBLFYfqvCiFitV2_VkUX_rO_UKF_c"
+
+def orkestrator_etl():
+    logging.info("=== MEMULAI PIPELINE ETL ===")
     
-    if raw_data:
-        print(f"Ekstraksi selesai. Memulai Transformasi untuk {len(raw_data)} baris data kotor...")
-        clean_df = transform_data(raw_data)
+    # 1. Extract
+    df_mentah = jalankan_ekstraksi()
+    if df_mentah.empty:
+        logging.error("Pipeline dihentikan: Data mentah kosong.")
+        return
+
+    # 2. Transform
+    df_bersih = bersihkan_data(df_mentah)
+    if df_bersih.empty:
+        logging.error("Pipeline dihentikan: Data bersih kosong setelah transformasi.")
+        return
         
-        if not clean_df.empty:
-            print(f"Transformasi selesai. Memuat {len(clean_df)} baris data bersih...")
-            
-            # 1. Load to CSV
-            load_to_csv(clean_df, 'products.csv')
-            
-            # 2. Load to MySQL (Sesuaikan user, password, host, dan nama DB)
-            load_to_mysql(clean_df, db_user='root', db_pass='', db_host='localhost', db_name='dicoding_etl')
-            
-            # 3. Load to Google Sheets (Masukkan SPREADSHEET_ID dari URL Spreadsheet Anda)
-            # URL Sheets: https://docs.google.com/spreadsheets/d/[SPREADSHEET_ID]/edit
-            SPREADSHEET_ID = '1cBs2aDrhI5N5iuzBLFYfqvCiFitV2_VkUX_rO_UKF_c'
-            load_to_gsheets(clean_df, SPREADSHEET_ID)
-            
-            print("ETL Pipeline Selesai!")
-        else:
-            print("Gagal: Dataframe hasil transformasi kosong.")
-    else:
-        print("Gagal: Tidak ada data yang berhasil diekstrak.")
+    logging.info(f"Data siap dimuat: {len(df_bersih)} baris.")
+
+    # 3. Load
+    simpan_ke_csv(df_bersih)
+    simpan_ke_mysql(df_bersih, DB_URI)
+    simpan_ke_gsheets(df_bersih, SPREADSHEET_ID)
+    
+    logging.info("=== PIPELINE ETL SELESAI DENGAN SUKSES ===")
 
 if __name__ == "__main__":
-    main()
+    orkestrator_etl()

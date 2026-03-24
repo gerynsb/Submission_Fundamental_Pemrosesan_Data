@@ -1,40 +1,47 @@
 import pandas as pd
+import logging
 from sqlalchemy import create_engine
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-def load_to_csv(df, filename='products.csv'):
-    try:
-        df.to_csv(filename, index=False)
-        print(f"Sukses menyimpan ke {filename}")
-    except Exception as e:
-        print(f"Error saving to CSV: {e}")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def load_to_mysql(df, db_user, db_pass, db_host, db_name, table_name='products'):
+def simpan_ke_csv(df, nama_file="produk.csv"):
     try:
-        # Ganti kredensial sesuai database MySQL lokal Anda
-        engine = create_engine(f"mysql+pymysql://root:dean@localhost:3306/dicoding_etl")
-        df.to_sql(name=table_name, con=engine, if_exists='replace', index=False)
-        print(f"Sukses menyimpan ke tabel MySQL '{table_name}'")
+        df.to_csv(nama_file, index=False)
+        logging.info(f"Sukses menyimpan file CSV: {nama_file}")
+        return True
     except Exception as e:
-        print(f"Error saving to MySQL: {e}")
+        logging.error(f"Gagal menyimpan CSV: {e}")
+        return False
 
-def load_to_gsheets(df, spreadsheet_id, credentials_file='google-sheets-api.json'):
+def simpan_ke_mysql(df, db_uri, nama_tabel="kompetitor_fashion"):
     try:
-        SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-        creds = service_account.Credentials.from_service_account_file(credentials_file, scopes=SCOPES)
-        service = build('sheets', 'v4', credentials=creds)
+        mesin_db = create_engine(db_uri)
+        df.to_sql(name=nama_tabel, con=mesin_db, if_exists='replace', index=False)
+        logging.info(f"Sukses memuat data ke tabel MySQL: {nama_tabel}")
+        return True
+    except Exception as e:
+        logging.error(f"Gagal memuat ke MySQL: {e}")
+        return False
+
+def simpan_ke_gsheets(df, spreadsheet_id, file_kredensial='google-sheets-api.json'):
+    try:
+        cakupan = ['https://www.googleapis.com/auth/spreadsheets']
+        kredensial = service_account.Credentials.from_service_account_file(file_kredensial, scopes=cakupan)
+        layanan = build('sheets', 'v4', credentials=kredensial)
         
-        # Konversi DataFrame ke format list of lists untuk API
-        values = [df.columns.values.tolist()] + df.astype(str).values.tolist()
-        body = {'values': values}
+        # Konversi ke format matrix (list of lists)
+        nilai_sel = [df.columns.values.tolist()] + df.astype(str).values.tolist()
+        body = {'values': nilai_sel}
         
-        range_name = 'Sheet1!A1'
-        result = service.spreadsheets().values().update(
-            spreadsheetId=spreadsheet_id, range=range_name,
+        hasil = layanan.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id, range='Sheet1!A1',
             valueInputOption='RAW', body=body
         ).execute()
         
-        print(f"Sukses menyimpan ke Google Sheets: {result.get('updatedCells')} cells updated.")
+        logging.info(f"Sukses sinkronisasi ke Google Sheets. {hasil.get('updatedCells')} sel diperbarui.")
+        return True
     except Exception as e:
-        print(f"Error saving to Google Sheets: {e}")
+        logging.error(f"Gagal memuat ke Google Sheets: {e}")
+        return False
