@@ -1,0 +1,12 @@
+# Untuk menjalankan Skrip ETL Pipeline melalui terminal ketikkan
+python main.py
+
+# Menjalankan unit test di folder tests
+python -m pytest tests/
+
+# Menajalankan test coverage pada folder tests
+coverage run -m pytest tests/
+coverage report -m
+
+# URL Google Sheets: 
+# [https://docs.google.com/spreadsheets/d/1cBs2aDrhI5N5iuzBLFYfqvCiFitV2_VkUX_rO_UKF_c/edit?usp=sharing]
